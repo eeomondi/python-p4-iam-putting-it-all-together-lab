@@ -1,7 +1,7 @@
-from sqlalchemy.orm import validates
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin  # type: ignore
-
 from config import db, bcrypt
 
 class User(db.Model, SerializerMixin):
@@ -32,6 +32,16 @@ class User(db.Model, SerializerMixin):
     def check_password(self, password):
         """Check if the given password matches the stored hash."""
         return bcrypt.check_password_hash(self._password_hash, password)
+
+    @classmethod
+    def create_user(cls, username, password):
+        """Create and return a user object after hashing the password."""
+        if not username or not password:
+            raise ValueError("Username and password are required")
+        user = cls(username=username, password=password)
+        db.session.add(user)
+        db.session.commit()
+        return user
 
 
 class Recipe(db.Model, SerializerMixin):
@@ -67,3 +77,18 @@ class Recipe(db.Model, SerializerMixin):
         if minutes <= 0:
             raise ValueError("Minutes to complete must be a positive integer.")
         return minutes
+
+    @classmethod
+    def create_recipe(cls, title, instructions, minutes_to_complete, user_id):
+        """Create and return a recipe object linked to a user."""
+        if not title or len(instructions) < 50 or minutes_to_complete <= 0:
+            raise ValueError("Invalid recipe data.")
+        recipe = cls(
+            title=title,
+            instructions=instructions,
+            minutes_to_complete=minutes_to_complete,
+            user_id=user_id
+        )
+        db.session.add(recipe)
+        db.session.commit()
+        return recipe
